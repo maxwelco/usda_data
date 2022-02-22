@@ -1,0 +1,263 @@
+---
+title: "data"
+author: "Maxwel Coura Oliveira"
+date: "2/22/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(tidyUSDA)
+library(ggtext)
+library(treemapify)
+library(gganimate)
+library(extrafont)
+library(showtext)
+showtext_auto()
+font_add_google("Lato", "lato")
+```
+
+```{r}
+key <- '7B8DE5D4-8393-3BF2-AAE3-A578DADE4D38'
+```
+
+```{r}
+tidyUSDA::getQuickstat(
+  key = key,
+  program = 'SURVEY',
+  sector = 'ENVIRONMENTAL',
+  group= 'FIELD CROPS',
+  commodity= 'CORN',
+  category = 'APPLICATIONS',
+  geographic_level = 'REGION : MULTI-STATE',
+  domain=NULL,
+  county=NULL,
+  state = NULL,
+  year = NULL,
+  geometry = T,
+  lower48 = T)  -> corn_app
+
+corn_app |> as_tibble() -> corn_app1
+
+
+
+
+corn_app1 |> 
+  filter(short_desc == 'CORN - APPLICATIONS, MEASURED IN LB') |> 
+  filter(domaincat_desc %in% c('CHEMICAL, INSECTICIDE: (TOTAL)',
+                               'CHEMICAL, HERBICIDE: (TOTAL)',
+                               'CHEMICAL, FUNGICIDE: (TOTAL)')) |> 
+  dplyr::select(year, Value, domaincat_desc, commodity_desc) |> 
+  mutate(value = round(Value * 0.453592,0)) |> 
+  group_by(year, domaincat_desc, commodity_desc) |> 
+  summarise(total_value = sum(value, na.rm = TRUE)) -> corn_app2
+
+
+
+corn_app2 |> 
+  janitor::clean_names() |> 
+  mutate(domaincat_desc = case_when(
+    domaincat_desc == 'CHEMICAL, HERBICIDE: (TOTAL)' ~ "Herbicide",
+    domaincat_desc == 'CHEMICAL, INSECTICIDE: (TOTAL)' ~ "Insecticide",
+    TRUE ~ "Fungicide",
+  )) |> 
+  mutate(commodity_desc = tolower(commodity_desc)) |> 
+  mutate(total_value_ton = round(total_value /1000,0)) -> corn_app3
+```
+
+
+
+```{r}
+tidyUSDA::getQuickstat(
+  key = key,
+  program = 'SURVEY',
+  sector = 'ENVIRONMENTAL',
+  group= 'FIELD CROPS',
+  commodity= 'SOYBEANS',
+  category = 'APPLICATIONS',
+  geographic_level = 'REGION : MULTI-STATE',
+  domain=NULL,
+  county=NULL,
+  state = NULL,
+  year = NULL,
+  geometry = T,
+  lower48 = T)  -> soy_app
+
+soy_app |> as_tibble() -> soy_app1
+
+
+
+soy_app1 |> 
+  filter(short_desc == 'SOYBEANS - APPLICATIONS, MEASURED IN LB') |> 
+  filter(domaincat_desc %in% c('CHEMICAL, INSECTICIDE: (TOTAL)',
+                               'CHEMICAL, HERBICIDE: (TOTAL)',
+                               'CHEMICAL, FUNGICIDE: (TOTAL)')) |> 
+  dplyr::select(year, Value, domaincat_desc, commodity_desc) |> 
+  mutate(value = round(Value * 0.453592,0)) |> 
+  group_by(year, domaincat_desc, commodity_desc) |> 
+  summarise(total_value = sum(value, na.rm = TRUE)) -> soy_app2
+
+
+
+soy_app2 |> 
+  janitor::clean_names() |> 
+  mutate(domaincat_desc = case_when(
+    domaincat_desc == 'CHEMICAL, HERBICIDE: (TOTAL)' ~ "Herbicide",
+    domaincat_desc == 'CHEMICAL, INSECTICIDE: (TOTAL)' ~ "Insecticide",
+    TRUE ~ "Fungicide",
+  )) |> 
+  mutate(commodity_desc = tolower(commodity_desc)) |> 
+  mutate(total_value_ton = round(total_value /1000,0)) -> soy_app3
+```
+
+
+
+
+
+```{r}
+tidyUSDA::getQuickstat(
+  key = key,
+  program = 'SURVEY',
+  sector = 'ENVIRONMENTAL',
+  group= 'FIELD CROPS',
+  commodity= 'COTTON',
+  category = 'APPLICATIONS',
+  geographic_level = 'REGION : MULTI-STATE',
+  domain=NULL,
+  county=NULL,
+  state = NULL,
+  year = NULL,
+  geometry = T,
+  lower48 = T)  -> cot_app
+
+cot_app |> as_tibble() -> cot_app1
+
+
+
+cot_app1 |> 
+  filter(short_desc == 'COTTON - APPLICATIONS, MEASURED IN LB') |> 
+  filter(domaincat_desc %in% c('CHEMICAL, INSECTICIDE: (TOTAL)',
+                               'CHEMICAL, HERBICIDE: (TOTAL)',
+                               'CHEMICAL, FUNGICIDE: (TOTAL)')) |> 
+  dplyr::select(year, Value, domaincat_desc, commodity_desc) |> 
+  mutate(value = round(Value * 0.453592,0)) |> 
+  group_by(year, domaincat_desc, commodity_desc) |> 
+  summarise(total_value = sum(value, na.rm = TRUE)) -> cot_app2
+
+
+
+cot_app2 |> 
+  janitor::clean_names() |> 
+  mutate(domaincat_desc = case_when(
+    domaincat_desc == 'CHEMICAL, HERBICIDE: (TOTAL)' ~ "Herbicide",
+    domaincat_desc == 'CHEMICAL, INSECTICIDE: (TOTAL)' ~ "Insecticide",
+    TRUE ~ "Fungicide",
+  )) |> 
+  mutate(commodity_desc = tolower(commodity_desc)) |> 
+  mutate(total_value_ton = round(total_value /1000,0)) -> cot_app3
+```
+
+
+
+
+
+
+
+```{r}
+soy_app3 |> 
+  bind_rows(corn_app3) |> 
+  bind_rows(cot_app3) |> 
+  mutate(commodity_desc = str_to_title(commodity_desc)) -> crops
+```
+
+```{r}
+crops |> 
+  filter(commodity_desc == "Soybeans") |> 
+#  filter(year == 2010) |> 
+ggplot(aes(area = total_value_ton, fill = domaincat_desc, label = domaincat_desc)) +
+  geom_treemap() +
+  geom_treemap_text(fontface = "italic", colour = "white", place = "centre",
+                    grow = TRUE) +
+  scale_fill_manual(name = NULL, values = c('#12a4d9', 
+                                            '#322e2f', 
+                                            '#d9138a')) +
+  labs(title = 'Share of pesticide used on **soybean** in the United States',
+       subtitle = 'Year: {frame_time}',
+       caption = 'Source: USDA/NASS') +
+  theme_void() +
+  theme(legend.position = "none",
+        plot.title = element_markdown(size = 15)) +
+  transition_time(year) +
+  ease_aes('linear') -> soy_im
+
+anim_save('soy_im.gif', soy_im)
+```
+
+
+```{r}
+crops |> 
+  filter(commodity_desc == "Cotton") |> 
+#  filter(year == 2010) |> 
+ggplot(aes(area = total_value_ton, fill = domaincat_desc, label = domaincat_desc)) +
+  geom_treemap() +
+  geom_treemap_text(fontface = "italic", colour = "white", place = "centre",
+                    grow = TRUE) +
+  scale_fill_manual(name = NULL, values = c('#12a4d9', 
+                                            '#322e2f', 
+                                            '#d9138a')) +
+  labs(title = 'Share of pesticide used on **cotton** in the United States',
+       subtitle = 'Year: {frame_time}',
+       caption = 'Source: USDA/NASS') +
+  theme_void() +
+  theme(legend.position = "none",
+        plot.title = element_markdown(size = 15)) +
+  transition_time(year) +
+  ease_aes('linear') -> cotton_im
+
+anim_save('cotton_im.gif', cotton_im)
+```
+
+
+```{r}
+crops |> 
+  filter(commodity_desc == "Corn") |> 
+#  filter(year == 2010) |> 
+ggplot(aes(area = total_value_ton, fill = domaincat_desc, label = domaincat_desc)) +
+  geom_treemap() +
+  geom_treemap_text(fontface = "italic", colour = "white", place = "centre",
+                    grow = TRUE) +
+  scale_fill_manual(name = NULL, values = c('#12a4d9', 
+                                            '#322e2f', 
+                                            '#d9138a')) +
+  labs(title = 'Share of pesticide used on **corn** in the United States',
+       subtitle = 'Year: {frame_time}',
+       caption = 'Source: USDA/NASS') +
+  theme_void() +
+  theme(legend.position = "none",
+        plot.title = element_markdown(size = 15)) +
+  transition_time(year) +
+  ease_aes('linear') -> crn_im
+
+anim_save('crn_im.gif', crn_im)
+```
+
+
+
+ ------- Grafico de linha --------
+ 
+ 
+```{r}
+crops |> 
+  ggplot(aes(x = year, y = total_value_ton, color = domaincat_desc)) +
+  geom_line() +
+  facet_grid(~ commodity_desc) +
+  theme_bw() +
+  labs(x = "Year")
+```
+
+ 
