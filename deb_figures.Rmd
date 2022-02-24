@@ -208,6 +208,96 @@ wheat_app2 |>
   mutate(total_value_ton = round(total_value /1000,0)) -> wheat_app3
 ```
 
+```{r}
+tidyUSDA::getQuickstat(
+  key = key,
+  program = 'SURVEY',
+  sector = 'ENVIRONMENTAL',
+  group= 'FIELD CROPS',
+  commodity= 'WHEAT',
+  category = 'APPLICATIONS',
+  geographic_level = 'REGION : MULTI-STATE',
+  domain=NULL,
+  county=NULL,
+  state = NULL,
+  year = NULL,
+  geometry = T,
+  lower48 = T) -> whsp_app
+
+whsp_app |> as_tibble() -> whsp_app1
+
+
+
+whsp_app1 |> 
+  filter(short_desc == 'WHEAT, SPRING, (EXCL DURUM) - APPLICATIONS, MEASURED IN LB') |> 
+  filter(domaincat_desc %in% c('CHEMICAL, INSECTICIDE: (TOTAL)',
+                               'CHEMICAL, HERBICIDE: (TOTAL)',
+                               'CHEMICAL, FUNGICIDE: (TOTAL)')) |> 
+  dplyr::select(year, Value, domaincat_desc, commodity_desc) |> 
+  mutate(value = round(Value * 0.453592,0)) |> 
+  group_by(year, domaincat_desc, commodity_desc) |> 
+  summarise(total_value = sum(value, na.rm = TRUE)) -> whsp_app2
+
+
+
+whsp_app2 |> 
+  janitor::clean_names() |> 
+  mutate(domaincat_desc = case_when(
+    domaincat_desc == 'CHEMICAL, HERBICIDE: (TOTAL)' ~ "Herbicide",
+    domaincat_desc == 'CHEMICAL, INSECTICIDE: (TOTAL)' ~ "Insecticide",
+    TRUE ~ "Fungicide",
+  )) |> 
+  mutate(commodity_desc = tolower(commodity_desc)) |> 
+  mutate(total_value_ton = round(total_value /1000,0)) |> 
+  mutate(commodity_desc = if_else(commodity_desc == "wheat", "Spring wheat", 
+                                  commodity_desc)) -> whsp_app3
+```
+
+
+```{r}
+tidyUSDA::getQuickstat(
+  key = key,
+  program = 'SURVEY',
+  sector = 'ENVIRONMENTAL',
+  group= 'FIELD CROPS',
+  commodity= 'RICE',
+  category = 'APPLICATIONS',
+  geographic_level = 'REGION : MULTI-STATE',
+  domain=NULL,
+  county=NULL,
+  state = NULL,
+  year = NULL,
+  geometry = T,
+  lower48 = T) -> rice_app
+
+rice_app |> as_tibble() -> rice_app1
+
+
+
+rice_app1 |> 
+  filter(short_desc == 'RICE - APPLICATIONS, MEASURED IN LB') |> 
+  filter(domaincat_desc %in% c('CHEMICAL, INSECTICIDE: (TOTAL)',
+                               'CHEMICAL, HERBICIDE: (TOTAL)',
+                               'CHEMICAL, FUNGICIDE: (TOTAL)')) |> 
+  dplyr::select(year, Value, domaincat_desc, commodity_desc) |> 
+  mutate(value = round(Value * 0.453592,0)) |> 
+  group_by(year, domaincat_desc, commodity_desc) |> 
+  summarise(total_value = sum(value, na.rm = TRUE)) -> rice_app2
+
+
+
+rice_app2 |> 
+  janitor::clean_names() |> 
+  mutate(domaincat_desc = case_when(
+    domaincat_desc == 'CHEMICAL, HERBICIDE: (TOTAL)' ~ "Herbicide",
+    domaincat_desc == 'CHEMICAL, INSECTICIDE: (TOTAL)' ~ "Insecticide",
+    TRUE ~ "Fungicide",
+  )) |> 
+  mutate(commodity_desc = tolower(commodity_desc)) |> 
+  mutate(total_value_ton = round(total_value /1000,0)) |> 
+  mutate(commodity_desc = if_else(commodity_desc == "wheat", "Spring wheat", 
+                                  commodity_desc)) -> rice_app3
+```
 
 
 ```{r}
@@ -215,9 +305,15 @@ soy_app3 |>
   bind_rows(corn_app3) |> 
   bind_rows(cot_app3) |> 
   bind_rows(wheat_app3) |> 
+  bind_rows(whsp_app3) |> 
+  bind_rows(rice_app3) |> 
   mutate(commodity_desc = str_to_title(commodity_desc)) |> 
   mutate(commodity_desc = if_else(commodity_desc == "Wheat", 
-                                  "Winter Wheat",
+                                  "Winter wheat",
+                                  commodity_desc
+                                  )) |> 
+  mutate(commodity_desc = if_else(commodity_desc == "Spring Wheat", 
+                                  "Spring wheat",
                                   commodity_desc
                                   )) -> crops
 ```
@@ -350,7 +446,7 @@ crops |>
 #  scale_fill_brewer(name = NULL, palette = "Set3") +
   scale_x_continuous(breaks = seq(1990, 2020, 10)) +
   scale_y_continuous(labels = scales::number_format(scale = 100)) +
-  theme(legend.position = c(0.6, 0.9),
+  theme(legend.position = "bottom",
         legend.background = element_blank(),
         legend.text = element_markdown(size = 45),
         strip.text = element_markdown(size = 55, face = "bold"),
