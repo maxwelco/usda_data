@@ -1,0 +1,72 @@
+---
+title: "map"
+author: "Maxwel Coura Oliveira"
+date: "2/24/2022"
+output: html_document
+---
+
+
+
+```{r}
+library(geobr)
+
+```
+
+```{r}
+states <- read_state(year=2019) |> 
+  mutate(highligh = if_else(abbrev_state == "PR", TRUE, FALSE))
+```
+
+```{r}
+library(ggrepel)
+  ggplot() +
+    geom_sf(data=states, aes(fill=highligh), size=.15, show.legend = FALSE) +
+    theme_map() +
+    scale_fill_manual(values = c("#FFDF00", "beige")) +
+    geom_sf(data = pr_muni, fill = "#002776", color = NA, show.legend = FALSE) +
+    annotate("text", x = -59, y = -25, label = "Cascavel, PR", 
+           size = 10, face = "bold", color = "#002776") +
+    annotate("text", x = -52, y = -10, label = "Brazil", 
+           size = 25, face = "bold", color = "#009C3B")
+
+ggsave("map.png",  bg = "#FAF9F6")
+```
+
+```{r}
+read_municipality() |> 
+  mutate(highligh = if_else(name_muni == "Cascavel", TRUE, FALSE)) -> all_mun
+```
+
+```{r}
+  ggplot() +
+    geom_sf(data= all_mun, aes(fill=highligh), color = NA, size=.15, show.legend = FALSE) +
+    theme_map() +
+  scale_fill_manual(values = c("beige", 2)) 
+```
+
+
+
+
+
+
+```{r}
+pr_muni <- read_municipality(code_muni = "PR", year= 2020) |> 
+    mutate(highligh = if_else(name_muni == "Cascavel", TRUE, FALSE)) |> 
+  filter(highligh == TRUE)
+```
+
+
+```{r}
+  ggplot() +
+    geom_sf(data=pr_muni, aes(fill=highligh), size=.15, show.legend = FALSE) +
+    theme_map() +
+  scale_fill_manual(values = c("beige", 2)) -> pr
+```
+
+
+
+```{r}
+library(patchwork)
+brazil + pr
+```
+
