@@ -16,6 +16,7 @@ library(tidyUSDA)
 library(ggtext)
 library(treemapify)
 library(gganimate)
+library(ggthemes)
 library(extrafont)
 library(showtext)
 showtext_auto()
@@ -164,7 +165,48 @@ cot_app2 |>
 
 
 
+```{r}
+tidyUSDA::getQuickstat(
+  key = key,
+  program = 'SURVEY',
+  sector = 'ENVIRONMENTAL',
+  group= 'FIELD CROPS',
+  commodity= 'WHEAT',
+  category = 'APPLICATIONS',
+  geographic_level = 'REGION : MULTI-STATE',
+  domain=NULL,
+  county=NULL,
+  state = NULL,
+  year = NULL,
+  geometry = T,
+  lower48 = T) -> wheat_app
 
+wheat_app |> as_tibble() -> wheat_app1
+
+
+
+wheat_app1 |> 
+  filter(short_desc == 'WHEAT, WINTER - APPLICATIONS, MEASURED IN LB') |> 
+  filter(domaincat_desc %in% c('CHEMICAL, INSECTICIDE: (TOTAL)',
+                               'CHEMICAL, HERBICIDE: (TOTAL)',
+                               'CHEMICAL, FUNGICIDE: (TOTAL)')) |> 
+  dplyr::select(year, Value, domaincat_desc, commodity_desc) |> 
+  mutate(value = round(Value * 0.453592,0)) |> 
+  group_by(year, domaincat_desc, commodity_desc) |> 
+  summarise(total_value = sum(value, na.rm = TRUE)) -> wheat_app2
+
+
+
+wheat_app2 |> 
+  janitor::clean_names() |> 
+  mutate(domaincat_desc = case_when(
+    domaincat_desc == 'CHEMICAL, HERBICIDE: (TOTAL)' ~ "Herbicide",
+    domaincat_desc == 'CHEMICAL, INSECTICIDE: (TOTAL)' ~ "Insecticide",
+    TRUE ~ "Fungicide",
+  )) |> 
+  mutate(commodity_desc = tolower(commodity_desc)) |> 
+  mutate(total_value_ton = round(total_value /1000,0)) -> wheat_app3
+```
 
 
 
@@ -172,7 +214,12 @@ cot_app2 |>
 soy_app3 |> 
   bind_rows(corn_app3) |> 
   bind_rows(cot_app3) |> 
-  mutate(commodity_desc = str_to_title(commodity_desc)) -> crops
+  bind_rows(wheat_app3) |> 
+  mutate(commodity_desc = str_to_title(commodity_desc)) |> 
+  mutate(commodity_desc = if_else(commodity_desc == "Wheat", 
+                                  "Winter Wheat",
+                                  commodity_desc
+                                  )) -> crops
 ```
 
 ```{r}
@@ -294,20 +341,24 @@ ggsave("figure1.png", width = 12, height = 5)
 crops |> 
   ggplot(aes(x = year, y = total_value_ton, fill = domaincat_desc)) +
   geom_area(position = "fill") +
-  facet_grid(~ commodity_desc) +
-  theme_bw() +
+  facet_wrap(~ commodity_desc) +
+  theme_minimal() +
   labs(x = NULL, 
-       y = "Share of pesticide application") +
+       y = "Share of pesticide application (%)",
+       caption = "Source: USDA/NASS") +
   scale_fill_manual(name = NULL, values = c('#BF9000', '#0065A4', '#009900')) +
+#  scale_fill_brewer(name = NULL, palette = "Set3") +
   scale_x_continuous(breaks = seq(1990, 2020, 10)) +
-  theme(legend.position = c(0.4, 0.9),
+  scale_y_continuous(labels = scales::number_format(scale = 100)) +
+  theme(legend.position = c(0.6, 0.9),
         legend.background = element_blank(),
-        legend.text = element_markdown(size = 35),
-        strip.text = element_markdown(size = 45, face = "bold"),
-        axis.text = element_markdown(size = 35),
-        axis.title = element_markdown(size = 45))
+        legend.text = element_markdown(size = 45),
+        strip.text = element_markdown(size = 55, face = "bold"),
+        axis.text = element_markdown(size = 45),
+        axis.title = element_markdown(size = 55),
+        plot.caption = element_markdown(size = 35))
 
-ggsave("figure2.png", width = 12, height = 5)
+ggsave("figure2.png", bg = "#FAF9F6", width = 12, height = 8)
 ```
  
  
